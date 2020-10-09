@@ -91,6 +91,15 @@ public final class Constants {
     public static final double kAbsoluteBL = (2*Math.PI)/3.30;
     public static final double kAbsoluteBR = (2*Math.PI)/3.312;
    
+    public static final int FL_ENCODER = 0;
+    public static final int FR_ENCODER = 1;
+    public static final int BL_ENCODER = 2;
+    public static final int BR_ENCODER = 3;
+
+    public final static double FL_ENC_OFFSET = 183;
+    public final static double FR_ENC_OFFSET = 179;
+    public final static double BL_ENC_OFFSET = 221;
+    public final static double BR_ENC_OFFSET = 241;
   }
 
   public static final class OIConstants {
@@ -99,8 +108,8 @@ public final class Constants {
   }
 
   public static final class AutoConstants {
-    public static final double kMaxSpeedMetersPerSecond = 2;
-    public static final double kMaxAccelerationMetersPerSecondSquared = 6;
+    public static final double kMaxSpeedMetersPerSecond = 3;
+    public static final double kMaxAccelerationMetersPerSecondSquared = 9;
     public static final double kMaxAngularSpeedRadiansPerSecond = Math.PI;
     public static final double kMaxAngularSpeedRadiansPerSecondSquared = Math.PI;
 
@@ -178,6 +187,17 @@ public final class Constants {
         public static final double g = 0.09;
         public static final double b = 0.55;
       }
+
     }
+  }
+
+  public static final class Vision {
+    public static final double kCameraHeight = 0.23; // meter -- REMEASURE
+    public static final double kCameraPitch = 0.436; // radians
+    public static final double kTargetHeight = 2.06; // meters 
+    
+    public static final double turretKP = 0;
+    public static final double turretKI = 0;
+    public static final double turretKD = 0;
   }
 }

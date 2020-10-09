@@ -8,11 +8,17 @@
 package frc.robot.subsystems;
 
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants;
+import frc.robot.RobotContainer;
 import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.SpeedController;
+import edu.wpi.first.wpilibj.controller.PIDController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 import com.revrobotics.CANDigitalInput;
 import com.revrobotics.CANEncoder;
+import com.revrobotics.CANError;
 import com.revrobotics.CANPIDController;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.ControlType;
@@ -21,6 +27,7 @@ import com.revrobotics.CANSparkMaxLowLevel.PeriodicFrame;
 import com.revrobotics.CANDigitalInput.LimitSwitchPolarity;
 import com.revrobotics.CANSparkMax.IdleMode;
 import com.revrobotics.CANSparkMax.SoftLimitDirection;
+
 
 public class Turret extends SubsystemBase {
 
@@ -32,11 +39,17 @@ public class Turret extends SubsystemBase {
   public double kP, kI, kD, kIz, kFF, kMaxOutput, kMinOutput, setPoint, rotations;
   private CANDigitalInput m_reverseLimit;
   private DigitalInput limitSwitch;
-
+  public Vision vision;
+  public SwerveDrive swerve;
+  
+  private PIDController visionController = new PIDController(Constants.Vision.turretKP, Constants.Vision.turretKI, Constants.Vision.turretKD);
   /**
    * Creates a new Turret.
    */
-  public Turret() {
+  public Turret(Vision vision, SwerveDrive swerve) {
+    this.vision = vision;
+    this.swerve = swerve;
+
     turretMotor = new CANSparkMax(motor, MotorType.kBrushless);
     turretMotor.restoreFactoryDefaults();
     turretMotor.setSmartCurrentLimit(30);
@@ -95,12 +108,31 @@ public class Turret extends SubsystemBase {
     turretMotor.set(0);
   }
 
-  public void spin(final double left, final double right) {
-        if (left > 0.1)
-          turretMotor.set(-left / 12.);
-        else if (right > 0.1)
-          turretMotor.set(right/12.);
+  public void spin(boolean manual, double speed) {
+    double robotHeading = swerve.getHeading();
+
+    double targetPosition = 0;
+
+    if (robotHeading < 0 && robotHeading > -180 ) {
+      targetPosition = -robotHeading;
+    } else if (robotHeading > 0 && robotHeading < 180) {
+      targetPosition = 360 - robotHeading;
+    } 
+
+    if (manual)
+      turretMotor.set(speed);
      else
-     turretMotor.set(0);
-    }
+      // turretMotor.set(0);
+        m_turretPIDController.setReference(targetPosition, ControlType.kPosition);
+  }
+
+  // public void visionTurret() {
+  //   double targetYaw = vision.getTargetYaw();
+    
+  //   visionController.setSetpoint(0);
+  //   double speed = visionController.calculate(targetYaw);
+  //   turretMotor.set(speed);
+  // }
+
+
 }

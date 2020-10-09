@@ -12,7 +12,9 @@ import java.util.List;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 import edu.wpi.first.wpilibj.geometry.Pose2d;
@@ -41,157 +43,157 @@ import frc.robot.subsystems.*;
  * (including subsystems, commands, and button mappings) should be declared here.
  */
 public class RobotContainer {
-        // The robot's subsystems
-        public static SwerveDrive swerveDrive = new SwerveDrive();
-        private final Intake intake = new Intake();
-        private final Conveyor zoom = new Conveyor();
-        public final static Shooter shooter = new Shooter();
-        private final Climb climb = new Climb();
-        private final Turret spinny = new Turret();
+    // The robot's subsystems
+    public static SwerveDrive swerveDrive = new SwerveDrive();
+    private final Intake intake = new Intake();
+    private final Conveyor conveyor = new Conveyor();
+    public final static Shooter shooter = new Shooter();
+    private final Climb climb = new Climb();
+    public final Vision vision = new Vision();
+    private final Turret turret = new Turret(vision, swerveDrive);
 
-        // The driver's controller
-        public static Joystick m_driverController = new Joystick(OIConstants.kDriverControllerPort);
-        public static Joystick m_operatorController = new Joystick(1);
+    // The driver's controller
+    public static Joystick m_driverController = new Joystick(OIConstants.kDriverControllerPort);
+    public static Joystick m_operatorController = new Joystick(1);
 
-        public static ProfiledPIDController theta = new ProfiledPIDController(AutoConstants.kPThetaController, 0, 0,
-                        AutoConstants.kThetaControllerConstraints);
+//     public static final GenericHID.RumbleType kLeftRumble = 1;
 
-        // Network Tables for Vision
-        public NetworkTableEntry yaw;
-        public NetworkTableEntry isDriverMode;
 
-        /**
-         * The container for the robot. Contains subsystems, OI devices, and commands.
-         */
-        public RobotContainer() {
-                // Gets the default instance of NetworkTables
-                NetworkTableInstance table = NetworkTableInstance.getDefault();
+    public static ProfiledPIDController theta = new ProfiledPIDController(AutoConstants.kPThetaController, 0, 0,
+            AutoConstants.kThetaControllerConstraints);
 
-                // Gets the MyCamName table under the chamelon-vision table
-                // MyCamName will vary depending on the name of your camera
-                NetworkTable cameraTable = table.getTable("chameleon-vision").getSubTable("Shooter");
+    // Network Tables for Vision
+    public NetworkTableEntry yaw;
+    public NetworkTableEntry isDriverMode;
 
-                // Gets the yaw to the target from the cameraTable
-                yaw = cameraTable.getEntry("yaw");
+    /**
+     * The container for the robot. Contains subsystems, OI devices, and commands.
+     */
+    public RobotContainer() {
+        // Gets the default instance of NetworkTables
+        NetworkTableInstance table = NetworkTableInstance.getDefault();
 
-                // Gets the driveMode boolean from the cameraTable
-                isDriverMode = cameraTable.getEntry("driver_mode");
+        // Gets the MyCamName table under the chamelon-vision table
+        // MyCamName will vary depending on the name of your camera
+        NetworkTable cameraTable = table.getTable("chameleon-vision").getSubTable("Shooter");
 
-                // Configure the button bindings
-                configureButtonBindings();
+        // Gets the yaw to the target from the cameraTable
+        yaw = cameraTable.getEntry("yaw");
 
-                // Configure default commands
-                // Set the default drive command to split-stick arcade drive
-                swerveDrive.setDefaultCommand(
+        // Gets the driveMode boolean from the cameraTable
+        isDriverMode = cameraTable.getEntry("driver_mode");
 
-                                new RunCommand(() -> swerveDrive.drive(-m_driverController.getRawAxis(1)
-                                                * Constants.SwerveDriveConstants.kMaxSpeedMetersPerSecond,
-                                                -m_driverController.getRawAxis(0)
-                                                                * Constants.SwerveDriveConstants.kMaxSpeedMetersPerSecond,
-                                                -m_driverController.getRawAxis(4) * (2 * Math.PI), true), swerveDrive));
+        // Configure the button bindings
+        configureButtonBindings();
 
-                zoom.setDefaultCommand(new RunCommand(zoom::autoIndex, zoom));
-                intake.setDefaultCommand(new RunCommand(() -> intake.runWheels(m_operatorController.getRawAxis(2),
-                                m_operatorController.getRawAxis(3)), intake));
+        // Configure default commands
+        // Set the default drive command to split-stick arcade drive
+        swerveDrive.setDefaultCommand(
 
-                spinny.setDefaultCommand(new RunCommand(
-                                () -> spinny.spin(m_driverController.getRawAxis(2), m_driverController.getRawAxis(3)),
-                                spinny));
-        }
+                new RunCommand(() -> swerveDrive.drive(
+                        m_driverController.getRawAxis(0) * Constants.SwerveDriveConstants.kMaxSpeedMetersPerSecond,
+                        -m_driverController.getRawAxis(1) * Constants.SwerveDriveConstants.kMaxSpeedMetersPerSecond,
+                        -m_driverController.getRawAxis(4) * (Math.PI), true), swerveDrive));
 
-        /**
-         * 
-         * Use this method to define your button->command mappings. Buttons can be
-         * created by instantiating a {@link GenericHID} or one of its subclasses
-         * ({@link edu.wpi.first.wpilibj.Joystick} or {@link XboxController}), and then
-         * calling passing it to a {@link JoystickButton}.
-         */
-        private void configureButtonBindings() {
-                new JoystickButton(m_operatorController, 1).whenPressed(new InstantCommand(intake::extend, intake))
-                                .whenReleased(intake::retract, intake);
-                new JoystickButton(m_operatorController, 6).whileHeld(new InstantCommand(shooter::runShooter, shooter))
-                                .whenReleased(shooter::stopShooter, shooter);
-                new JoystickButton(m_operatorController, 6)
-                                .whenPressed(new RunCommand(() -> zoom.feedShooter(0.8, shooter.atSpeed()), zoom))
-                                .whenReleased(new RunCommand(zoom::autoIndex, zoom));
-                new JoystickButton(m_operatorController, 5)
-                                .whenPressed(new RunCommand(() -> zoom.manualControl(-1), zoom)).whenPressed(new InstantCommand(shooter::setShooter, shooter))
-                                .whenReleased(new RunCommand(zoom::autoIndex, zoom)).whenReleased(new InstantCommand(shooter::stopShooter, shooter));
-                new JoystickButton(m_operatorController, 7)
-                                .whenPressed(new RunCommand(() -> zoom.manualControl(1), zoom))
-                                .whenReleased(new RunCommand(zoom::autoIndex, zoom));
-                new JoystickButton(m_operatorController, 2).whileHeld(new InstantCommand(shooter::full53ND, shooter))
-                                .whenReleased(shooter::stopShooter, shooter);
-        }
+        conveyor.setDefaultCommand(new RunCommand(conveyor::autoIndex, conveyor));
+        intake.setDefaultCommand(new RunCommand(
+                () -> intake.runWheels(m_operatorController.getRawAxis(2), m_operatorController.getRawAxis(3)),
+                intake));
 
-        /**
-         * Use this to pass the autonomous command to the main {@link Robot} class.
-         *
-         * @return the command to run in autonomous
-         */
-        public Command getAutonomousCommand() {
-                // Create config for trajectory
-                TrajectoryConfig config = new TrajectoryConfig(AutoConstants.kMaxSpeedMetersPerSecond,
-                                AutoConstants.kMaxAccelerationMetersPerSecondSquared)
-                                                // Add kinematics to ensure max speed is actually obeyed
-                                                .setKinematics(SwerveDriveConstants.kDriveKinematics);
+        turret.setDefaultCommand(new RunCommand(
+                () -> {
+                        turret.spin(false, 0);                       
+                        
+                        // work on rumble later
+                        // if (vision.hasTargets() == true) {
+                        //         m_driverController.setRumble(RumbleType.kLeftRumble, 0.3);
+                        // } else {
+                        //         m_driverController.setRumble(RumbleType.kLeftRumble, 0);
+                        // }
+                },
+                turret));
 
-                // An example trajectory to follow. All units in meters.
-                Trajectory exampleTrajectory2 = TrajectoryGenerator.generateTrajectory(
-                                // Start at the origin facing the +X direction
-                                new Pose2d(0, 1, new Rotation2d(-(Math.PI) / 2.)),
-                                // Pass through these two interior waypoints, making an 's' curve path
-                                List.of(new Translation2d(0, 0)
+        
 
-                                ),
-                                // End 3 meters straight ahead of where we started, facing forward
-                                new Pose2d(0, -1, new Rotation2d(-(Math.PI) / 2.)), config);
+        // vision.setDefaultCommand(new RunCommand(vision::runVision, vision));
+    }
 
-                Trajectory exampleTrajectory1 = TrajectoryGenerator.generateTrajectory(
-                                // Start at the origin facing the +X direction
-                                new Pose2d(0, 0, new Rotation2d((Math.PI) / 2.)),
-                                // Pass through these two interior waypoints, making an 's' curve path
-                                List.of(new Translation2d(0, 0.5)
+    /**
+     * 
+     * Use this method to define your button->command mappings. Buttons can be
+     * created by instantiating a {@link GenericHID} or one of its subclasses
+     * ({@link edu.wpi.first.wpilibj.Joystick} or {@link XboxController}), and then
+     * calling passing it to a {@link JoystickButton}.
+     */
+    private void configureButtonBindings() {
+        new JoystickButton(m_operatorController, 1).whenPressed(new InstantCommand(intake::extend, intake))
+                .whenReleased(intake::retract, intake);
+        new JoystickButton(m_operatorController, 6).whileHeld(new InstantCommand(shooter::runShooter, shooter))
+                .whenReleased(shooter::stopShooter, shooter);
+         new JoystickButton(m_operatorController, 9).whileHeld(new RunCommand(() -> shooter.runHood(0), shooter));
+         new JoystickButton(m_operatorController, 10).whileHeld(new RunCommand(() -> shooter.runHood(1), shooter));
+        new JoystickButton(m_operatorController, 6)
+                .whileHeld(new RunCommand(() -> conveyor.feedShooter(0.8, shooter.atSpeed()), conveyor))
+                .whenReleased(new RunCommand(conveyor::autoIndex, conveyor));
+        new JoystickButton(m_operatorController, 5).whenPressed(new RunCommand(() -> conveyor.manualControl(1), conveyor))
+                .whenReleased(new RunCommand(conveyor::autoIndex, conveyor));
+        new JoystickButton(m_operatorController, 2).whileHeld(new RunCommand(() -> turret.spin(true, 0.25)))
+                .whenReleased(new RunCommand(() -> turret.spin(true, 0)));
+        new JoystickButton(m_operatorController, 3).whileHeld(new RunCommand(() -> turret.spin(true, -0.25)))
+                .whenReleased(new RunCommand(() -> turret.spin(true, 0)));
+        //new JoystickButton(m_operatorController, 4).whenPressed(new RunCommand(() -> conveyor.manualControl(-), conveyor))
+        //        .whenReleased(new RunCommand(conveyor::autoIndex, conveyor));
+        // should be start button for camera to find target idk what number is so fix it
+        // new JoystickButton(m_operatorController, 7).whenHeld(new InstantCommand(turret::visionTurret, turret));
+        
+}
 
-                                ),
-                                // End 3 meters straight ahead of where we started, facing forward
-                                new Pose2d(0, 1, new Rotation2d((Math.PI) / 2.)), config);
+    /**
+     * Use this to pass the autonomous command to the main {@link Robot} class.
+     *
+     * @return the command to run in autonomous
+     */
+    public Command getAutonomousCommand() {
+        // Create config for trajectory
+        TrajectoryConfig config = new TrajectoryConfig(.75,
+                AutoConstants.kMaxAccelerationMetersPerSecondSquared)
+                        // Add kinematics to ensure max speed is actually obeyed
+                        .setKinematics(SwerveDriveConstants.kDriveKinematics);
 
-                SwerveControllerCommand swerveControllerCommand1 = new SwerveControllerCommand(exampleTrajectory1, (0),
-                                swerveDrive::getPose, // Functional interface to feed supplier
-                                SwerveDriveConstants.kDriveKinematics,
+        // An example trajectory to follow. All units in meters.
+        Trajectory exampleTrajectory = TrajectoryGenerator.generateTrajectory(
+        // Start at the origin facing the +X direction
+        new Pose2d(0, 0, new Rotation2d((Math.PI) / 2)),
+        List.of(),
+        // End 3 meters straight ahead of where we started, facing forward
+        new Pose2d(-4, 2.3, new Rotation2d((Math.PI) / 2)), config);
 
-                                // Position controllers
-                                new PIDController(AutoConstants.kPXController, 0, 0),
-                                new PIDController(AutoConstants.kPYController, 0, 0), theta,
 
-                                swerveDrive::setModuleStates,
 
-                                swerveDrive
 
-                );
+        SwerveControllerCommand swerveControllerCommand1 = new SwerveControllerCommand(exampleTrajectory,
+                (1.875), swerveDrive::getPose, // Functional interface to feed supplier
+                SwerveDriveConstants.kDriveKinematics,
 
-                SwerveControllerCommand swerveControllerCommand2 = new SwerveControllerCommand(exampleTrajectory2, (0),
-                                swerveDrive::getPose, // Functional interface to feed
-                                // supplier
-                                SwerveDriveConstants.kDriveKinematics,
+                // Position controllers
+                new PIDController(AutoConstants.kPXController, 0, 0),
+                new PIDController(AutoConstants.kPYController, 0, 0), theta,
 
-                                // Position controllers
-                                new PIDController(AutoConstants.kPXController, 0, 0),
-                                new PIDController(AutoConstants.kPYController, 0, 0), theta,
+                swerveDrive::setModuleStates,
 
-                                swerveDrive::setModuleStates,
+                swerveDrive
 
-                                swerveDrive
+        );
 
-                );
+        Command shootCommand = new InstantCommand(() -> shooter.runHood(.5), shooter)
+                                .andThen(shooter::runShooter, shooter)
+                                .andThen(new RunCommand(() -> conveyor.feedShooter(0.75, shooter.atSpeed()), conveyor))
+                                .withTimeout(15).andThen(new InstantCommand(shooter::stopShooter, shooter));
 
-                // Run path following command, then stop at the end.
-                return new InstantCommand(shooter::runShooter, shooter)
-                                .andThen(new RunCommand(() -> zoom.feedShooter(0.75, shooter.atSpeed()), zoom))
-                                .withTimeout(4).andThen(new InstantCommand(shooter::stopShooter, shooter))
-                                .andThen(new RunCommand(zoom::autoIndex, zoom)).withTimeout(5)
-                                .andThen(swerveControllerCommand1).andThen(swerveControllerCommand2)
-                                .andThen(() -> swerveDrive.drive(0, 0, 0, false));
-        }
+        
+
+        return swerveControllerCommand1.andThen(() -> swerveDrive.drive(0, 0, 0, false)).andThen(shootCommand);
+
+    }
+
 }
